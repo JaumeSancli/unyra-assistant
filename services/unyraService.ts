@@ -2,21 +2,14 @@ import { UnyraTaskResponse, UnyraTaskData } from '../types';
 
 export const unyraService = {
     async getSubaccounts(): Promise<any[]> {
-        const apiKey = import.meta.env.VITE_GHL_API_KEY;
-        if (!apiKey) return [];
-
         try {
-            // Use Proxy Path to avoid CORS
-            const baseUrl = '/ghl-api';
-
-            const res = await fetch(`${baseUrl}/locations/search?limit=100`, {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Version': '2021-07-28',
-                    'Accept': 'application/json'
-                }
-            });
+            // API Key is now handled by the backend function
+            const res = await fetch('/api/subaccounts');
             const json = await res.json();
+
+            if (!res.ok) {
+                throw new Error(json.error || 'Failed to fetch subaccounts');
+            }
 
             // Map to simpler format if needed, or return raw
             // Matches SubAccount interface: { id, name, email, plan, status }
@@ -24,8 +17,8 @@ export const unyraService = {
                 id: loc.id,
                 name: loc.name || "Unnamed Location",
                 email: loc.email || "no-email",
-                plan: "Standard", // API doesn't always return plan name easily
-                status: "active" // Defaulting for now
+                plan: "Standard",
+                status: "active"
             }));
         } catch (e) {
             console.error("Failed to fetch subaccounts", e);
@@ -34,39 +27,18 @@ export const unyraService = {
     },
 
     async createTask(taskData: any): Promise<UnyraTaskResponse> {
-        const apiKey = import.meta.env.VITE_GHL_API_KEY;
         const locationId = import.meta.env.VITE_GHL_LOCATION_ID;
 
-        if (!apiKey) {
-            console.warn("Missing VITE_GHL_API_KEY");
-            return { ok: false, unyra_task_id: 'ERR-CFG', task_url: '' };
-        }
-
-        // GHL v2 API for Tasks (or v1 depending on endpoint)
-        // Using standard endpoint: https://services.leadconnectorhq.com/tasks
-        // This requires locationId in the body or header depending on auth type.
-        // If using Agency Key, usually we need to specify 'Location-Id' header if acting on behalf?
-        // Or simpler: We just assume the user provided a Location API Key? 
-        // The user mentioned "Agency API Key". 
-        // With Agency Token -> We likely need access token (OAuth).
-        // If it's a "Personal Access Token" (new system), it works similarly.
-        // Let's assume standard POST /contacts/{contact_id}/tasks or generic /tasks logic if available.
-
-        // Actually, creating a task usually requires a Contact ID. 
-        // Our tool definition receives `requester_email`. We must first Find/Create Contact, then Create Task.
+        // Note: API Key is NOT accessed here. Secure backend handles it.
 
         try {
-            // 1. Find/Create Contact
+            // 1. Find/Create Contact (Securely via backend)
             const contactId = await this._ensureContactInGHL(taskData.requester_email, taskData.metadata?.location_name);
 
-            // 2. Create Task
-            const res = await fetch('/ghl-api/tasks', {
+            // 2. Create Task (Securely via backend)
+            const res = await fetch('/api/create-task', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Version': '2021-07-28',
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contactId: contactId,
                     title: taskData.title,
@@ -86,7 +58,7 @@ export const unyraService = {
             return {
                 ok: true,
                 unyra_task_id: json.id,
-                task_url: `https://app.gohighlevel.com/v2/location/${locationId}/tasks` // Construct generic URL since direct link might vary
+                task_url: `https://app.gohighlevel.com/v2/location/${locationId}/tasks`
             };
 
         } catch (e: any) {
@@ -96,38 +68,25 @@ export const unyraService = {
     },
 
     async _ensureContactInGHL(email: string, name?: string): Promise<string> {
-        const apiKey = import.meta.env.VITE_GHL_API_KEY;
-        const locationId = import.meta.env.VITE_GHL_LOCATION_ID; // If using Agency Key, might need this in body/query?
-        // NOTE: With Agency Key, you can't hit location endpoints directly without specifying location context usually.
-        // But assuming the user put a Location-level API Key OR a Bearer token with scope.
-        // Let's try standard lookup.
+        const locationId = import.meta.env.VITE_GHL_LOCATION_ID;
 
-        const searchRes = await fetch(`/ghl-api/contacts/search?query=${email}&locationId=${locationId}`, {
-            headers: { 'Authorization': `Bearer ${apiKey}`, 'Version': '2021-07-28' }
-        });
-
-        const searchJson = await searchRes.json();
-        if (searchJson.contacts && searchJson.contacts.length > 0) {
-            return searchJson.contacts[0].id;
-        }
-
-        // Create
-        const createRes = await fetch(`/ghl-api/contacts/`, {
+        // Single call to backend which handles Search AND Create
+        const res = await fetch('/api/contact', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Version': '2021-07-28',
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                locationId: locationId,
-                email: email,
-                name: name || 'Support User',
-                tags: ['unyra-support']
+                locationId,
+                email,
+                name
             })
         });
 
-        const createJson = await createRes.json();
-        return createJson.contact.id;
+        const json = await res.json();
+
+        if (!res.ok) {
+            throw new Error(json.error || "Failed to identify contact");
+        }
+
+        return json.id; // Backend returns { id: '...', status: 'found'|'created' }
     }
 };
