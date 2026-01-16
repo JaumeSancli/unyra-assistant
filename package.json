@@ -1,6 +1,7 @@
 {
   "name": "unyra-support-assistant",
   "private": true,
+  "author": "JaumeSancli <sancli@gmail.com>",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
