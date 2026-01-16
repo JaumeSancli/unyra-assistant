@@ -14,6 +14,7 @@ const App: React.FC = () => {
 
   // State for subaccounts (Real Data)
   const [subaccounts, setSubaccounts] = useState<SubAccount[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // State for active account
   const [selectedAccount, setSelectedAccount] = useState<SubAccount | null>(null);
@@ -27,29 +28,47 @@ const App: React.FC = () => {
   // Fetch Subaccounts on Boot
   useEffect(() => {
     const fetchAccounts = async () => {
-      // 1. Fetch all (Assuming Admin Key)
-      const allAccounts = await unyraService.getSubaccounts();
+      // DEBUG: Check if API Key exists
+      const apiKey = import.meta.env.VITE_GHL_API_KEY;
+      if (!apiKey) {
+        setFetchError("❌ Error Critical: Falta VITE_GHL_API_KEY en las variables de entorno de Vercel.");
+        return;
+      }
 
-      // 2. Filter based on Role
-      // In a real app, 'currentUser' would come from auth context.
-      // Here, we act as if we are:
-      // - Admin: See all.
-      // - Client: See only the one matching VITE_GHL_LOCATION_ID.
+      try {
+        // 1. Fetch all (Assuming Admin Key)
+        const allAccounts = await unyraService.getSubaccounts();
 
-      if (currentUser.role === 'admin') {
-        setSubaccounts(allAccounts);
-        if (allAccounts.length > 0 && !selectedAccount) {
-          setSelectedAccount(allAccounts[0]);
+        if (allAccounts.length === 0) {
+          setFetchError("⚠️ Conexión exitosa, pero no se encontraron subcuentas (o la API Key no tiene permisos).");
+          // Keep loading/fallback state
+        } else {
+          setFetchError(null);
         }
-      } else {
-        // Client Mode: Filter to specific ID
-        const myLocationId = import.meta.env.VITE_GHL_LOCATION_ID;
-        const myAccount = allAccounts.find(a => a.id === myLocationId) || allAccounts[0]; // Fallback
 
-        if (myAccount) {
-          setSubaccounts([myAccount]);
-          setSelectedAccount(myAccount);
+        // 2. Filter based on Role
+        // In a real app, 'currentUser' would come from auth context.
+        // Here, we act as if we are:
+        // - Admin: See all.
+        // - Client: See only the one matching VITE_GHL_LOCATION_ID.
+
+        if (currentUser.role === 'admin') {
+          setSubaccounts(allAccounts);
+          if (allAccounts.length > 0 && !selectedAccount) {
+            setSelectedAccount(allAccounts[0]);
+          }
+        } else {
+          // Client Mode: Filter to specific ID
+          const myLocationId = import.meta.env.VITE_GHL_LOCATION_ID;
+          const myAccount = allAccounts.find(a => a.id === myLocationId) || allAccounts[0]; // Fallback
+
+          if (myAccount) {
+            setSubaccounts([myAccount]);
+            setSelectedAccount(myAccount);
+          }
         }
+      } catch (err: any) {
+        setFetchError(`❌ Error de Conexión: ${err.message || 'Error desconocido al conectar con GHL'}`);
       }
     };
 
@@ -172,6 +191,12 @@ const App: React.FC = () => {
 
       {/* Sidebar */}
       <div className="hidden md:flex w-64 bg-slate-900 flex-col text-slate-300">
+        {/* Error Banner */}
+        {fetchError && (
+          <div className="bg-red-500/10 border-b border-red-500/20 p-2 text-[10px] text-red-400 font-mono break-words">
+            {fetchError}
+          </div>
+        )}
         <div className="p-4 border-b border-slate-700 mb-2">
           <div className="flex items-center gap-2 text-white font-semibold">
             <Zap className="text-yellow-400 fill-yellow-400" />

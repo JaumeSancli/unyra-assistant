@@ -7,7 +7,7 @@ export const unyraService = {
 
         try {
             // Use Proxy Path to avoid CORS
-            const baseUrl = '/api/ghl';
+            const baseUrl = '/ghl-api';
 
             const res = await fetch(`${baseUrl}/locations/search?limit=100`, {
                 headers: {
@@ -60,7 +60,7 @@ export const unyraService = {
             const contactId = await this._ensureContactInGHL(taskData.requester_email, taskData.metadata?.location_name);
 
             // 2. Create Task
-            const res = await fetch('/api/ghl/tasks', {
+            const res = await fetch('/ghl-api/tasks', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -102,7 +102,7 @@ export const unyraService = {
         // But assuming the user put a Location-level API Key OR a Bearer token with scope.
         // Let's try standard lookup.
 
-        const searchRes = await fetch(`/api/ghl/contacts/search?query=${email}&locationId=${locationId}`, {
+        const searchRes = await fetch(`/ghl-api/contacts/search?query=${email}&locationId=${locationId}`, {
             headers: { 'Authorization': `Bearer ${apiKey}`, 'Version': '2021-07-28' }
         });
 
@@ -112,7 +112,7 @@ export const unyraService = {
         }
 
         // Create
-        const createRes = await fetch(`/api/ghl/contacts/`, {
+        const createRes = await fetch(`/ghl-api/contacts/`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
