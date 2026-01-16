@@ -117,10 +117,10 @@ Incluye siempre:
 - location:{location_name} (o locationId:{id} si existe)
 
 6.6) ORDEN DE EJECUCIÓN (SOLO GHL TASK)
-   - **PASO 1 (CRÍTICO):** Crea la tarea en UNYRA usando `create_unyra_task`.
-     - `severity`: Determínala según el problema.
-     - `priority_score`: Calcula del 1 al 100.
-     - `unyra_task_id`: El ID que te devuelva la herramienta.
+   - **PASO 1 (CRÍTICO):** Crea la tarea en UNYRA usando \`create_unyra_task\`.
+     - \`severity\`: Determínala según el problema.
+     - \`priority_score\`: Calcula del 1 al 100.
+     - \`unyra_task_id\`: El ID que te devuelva la herramienta.
    - **PASO 2:** Responde al usuario CONFIRMANDO que se ha creado la tarea.
    - **PASO 3:** Muestra la "Tarjeta de Confirmación" (JSON final).
 
