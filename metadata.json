@@ -1,0 +1,5 @@
+{
+  "name": "Unyra Support Assistant",
+  "description": "AI-powered support chat for Unyra using Gemini API with RAG context and ticket escalation capabilities.",
+  "requestFramePermissions": []
+}
