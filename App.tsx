@@ -187,8 +187,8 @@ const App: React.FC = () => {
 
         {/* Location Context Selector */}
         <LocationSelector
-          accounts={MOCK_SUBACCOUNTS}
-          selectedAccount={selectedAccount}
+          accounts={subaccounts}
+          selectedAccount={selectedAccount || subaccounts[0]}
           onSelect={setSelectedAccount}
           locked={!isAdmin} // Lock for non-admins
         />
