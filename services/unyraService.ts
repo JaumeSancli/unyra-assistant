@@ -88,5 +88,22 @@ export const unyraService = {
         }
 
         return json.id; // Backend returns { id: '...', status: 'found'|'created' }
+    },
+
+    async getTickets(email: string): Promise<any[]> {
+        const locationId = import.meta.env.VITE_GHL_LOCATION_ID;
+        if (!email || !locationId) return [];
+
+        try {
+            // Use our new secure backend endpoint
+            const res = await fetch(`/api/get-tasks?email=${encodeURIComponent(email)}&locationId=${locationId}`);
+            if (!res.ok) return [];
+
+            const json = await res.json();
+            return json.tasks || [];
+        } catch (e) {
+            console.error("Failed to fetch GHL tickets", e);
+            return [];
+        }
     }
 };
