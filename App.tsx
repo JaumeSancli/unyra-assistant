@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { geminiService } from './services/geminiService';
 import { unyraService } from './services/unyraService';
+import { sheetsService } from './services/sheetsService';
 import { Message, LoadingState, SubAccount, UserProfile, Attachment } from './types';
 import { MOCK_SUBACCOUNTS, MOCK_ADMIN_USER, MOCK_CLIENT_USER } from './constants';
 import ChatMessage from './components/ChatMessage';
@@ -131,7 +132,6 @@ const App: React.FC = () => {
   // Fetch Tickets on User Change
   useEffect(() => {
     const fetchTickets = async () => {
-      // Only fetch if we have an email (Client or Admin)
       if (currentUser.email) {
         try {
           const tickets = await sheetsService.getTickets(currentUser.email);
@@ -143,36 +143,6 @@ const App: React.FC = () => {
     };
     fetchTickets();
   }, [currentUser.email]);
-
-  // Initial Chat Trigger
-  const initChat = async (account: SubAccount, user: UserProfile) => {
-    if (!account) return;
-
-    setLoadingState(LoadingState.THINKING);
-    try {
-      await geminiService.startChat(account);
-
-      let welcomeText = "";
-      if (user.role === 'admin') {
-        welcomeText = `Hola ${user.name}. Estás supervisando la cuenta **${account.name}**. ¿Qué gestión deseas realizar hoy?`;
-      } else {
-        welcomeText = `Hola ${user.name}. Bienvenido al soporte de Unyra para **${account.name}**. ¿En qué puedo ayudarte? Puedes enviarme audio, video o texto.`;
-      }
-
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'model',
-          content: welcomeText,
-          timestamp: new Date()
-        }
-      ]);
-    } catch (e) {
-      console.error("Failed to init chat", e);
-    } finally {
-      setLoadingState(LoadingState.IDLE);
-    }
-  };
 
   // Initialize chat when active account changes (and is valid)
   useEffect(() => {

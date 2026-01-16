@@ -75,6 +75,7 @@ export type UserRole = 'admin' | 'client';
 export interface UserProfile {
   id: string;
   name: string;
+  email: string;
   role: UserRole;
   assignedLocationId?: string; // Only for clients
 }
