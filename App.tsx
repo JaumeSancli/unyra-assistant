@@ -188,9 +188,9 @@ const App: React.FC = () => {
         {/* Location Context Selector */}
         <LocationSelector
           accounts={subaccounts}
-          selectedAccount={selectedAccount || subaccounts[0]}
+          selectedAccount={selectedAccount || subaccounts[0] || { id: 'loading', name: 'Cargando cuentas...', plan: '', status: 'active' }}
           onSelect={setSelectedAccount}
-          locked={!isAdmin} // Lock for non-admins
+          locked={!isAdmin || subaccounts.length === 0}
         />
 
         <div className="p-4 space-y-6 flex-1 overflow-y-auto">
