@@ -170,7 +170,11 @@ export class UnyraSupportService {
   private chat: Chat | null = null;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+    if (!apiKey) {
+      console.warn("⚠️ NO API KEY FOUND: VITE_GEMINI_API_KEY is missing. App will run in Mock Mode or fail.");
+    }
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   async startChat(subAccount: SubAccount) {
