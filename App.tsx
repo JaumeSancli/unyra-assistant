@@ -125,24 +125,52 @@ const App: React.FC = () => {
     }
   };
 
-  // Switch Role Handler (For Demo Purposes)
-  const handleRoleSwitch = () => {
-    if (currentUser.role === 'admin') {
-      // Switch to Client
-      // Assuming VITE_GHL_LOCATION_ID is the "Client's" location
-      const clientLocId = import.meta.env.VITE_GHL_LOCATION_ID;
+  // Ticket Count State
+  const [ticketCount, setTicketCount] = useState<number>(0);
 
-      setCurrentUser({
-        id: 'client_user',
-        name: 'Cliente (Role)',
-        role: 'client',
-        assignedLocationId: clientLocId
-      });
-      // Effect will re-filter subaccounts
-    } else {
-      // Switch to Admin
-      setCurrentUser(MOCK_ADMIN_USER);
-      // Effect will fetch all
+  // Fetch Tickets on User Change
+  useEffect(() => {
+    const fetchTickets = async () => {
+      // Only fetch if we have an email (Client or Admin)
+      if (currentUser.email) {
+        try {
+          const tickets = await sheetsService.getTickets(currentUser.email);
+          setTicketCount(tickets.length);
+        } catch (e) {
+          console.error("Failed to fetch tickets", e);
+        }
+      }
+    };
+    fetchTickets();
+  }, [currentUser.email]);
+
+  // Initial Chat Trigger
+  const initChat = async (account: SubAccount, user: UserProfile) => {
+    if (!account) return;
+
+    setLoadingState(LoadingState.THINKING);
+    try {
+      await geminiService.startChat(account);
+
+      let welcomeText = "";
+      if (user.role === 'admin') {
+        welcomeText = `Hola ${user.name}. Estás supervisando la cuenta **${account.name}**. ¿Qué gestión deseas realizar hoy?`;
+      } else {
+        welcomeText = `Hola ${user.name}. Bienvenido al soporte de Unyra para **${account.name}**. ¿En qué puedo ayudarte? Puedes enviarme audio, video o texto.`;
+      }
+
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'model',
+          content: welcomeText,
+          timestamp: new Date()
+        }
+      ]);
+    } catch (e) {
+      console.error("Failed to init chat", e);
+    } finally {
+      setLoadingState(LoadingState.IDLE);
     }
   };
 
@@ -284,7 +312,7 @@ const App: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2 text-slate-400 cursor-not-allowed p-2">
                   <Ticket size={16} className="text-slate-600" />
-                  <span>Mis Tickets (3)</span>
+                  <span>Mis Tickets ({ticketCount})</span>
                 </li>
               </ul>
             </div>
@@ -294,23 +322,19 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-slate-700 space-y-3">
           {/* User Info */}
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] text-white font-bold">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white font-bold">
               {currentUser.name.charAt(0)}
             </div>
-            <div className="text-xs truncate text-slate-300">
-              {currentUser.name}
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium text-slate-200 truncate">
+                {currentUser.name}
+              </span>
+              <span className="text-[10px] text-slate-500 truncate">
+                {currentUser.email}
+              </span>
             </div>
           </div>
-
-          {/* Role Toggle for Demo */}
-          <button
-            onClick={handleRoleSwitch}
-            className="w-full flex items-center justify-center gap-2 text-xs py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors border border-slate-700"
-          >
-            <RotateCcw size={12} />
-            <span>Switch Role (Demo)</span>
-          </button>
         </div>
       </div>
 
