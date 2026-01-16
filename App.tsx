@@ -203,7 +203,7 @@ const App: React.FC = () => {
             <span>UNYRA Support</span>
           </div>
           <div className="text-xs text-slate-500 mt-1 flex justify-between items-center">
-            <span>v3.0.0 (Multimodal)</span>
+            <span>Jaume Sanclimens</span>
             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${isAdmin ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
               {currentUser.role}
             </span>
