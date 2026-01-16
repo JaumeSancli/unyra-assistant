@@ -9,8 +9,25 @@ import LocationSelector from './components/LocationSelector';
 import { LifeBuoy, Zap, Database, CheckCircle2, Bot, Users, LayoutDashboard, Ticket, RotateCcw } from 'lucide-react';
 
 const App: React.FC = () => {
-  // State for User Role (Mocking Authentication)
-  const [currentUser, setCurrentUser] = useState<UserProfile>(MOCK_ADMIN_USER);
+  // Constants
+  const ADMIN_EMAILS = ['unyra@intrepidum.net', 'laura@jaumesanclimens.com'];
+
+  // State for current user (Derived from URL or Default)
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || 'unyra@intrepidum.net'; // Default to admin for dev
+    const name = params.get('name') || 'Admin Usuario';
+
+    const role = ADMIN_EMAILS.includes(email) ? 'admin' : 'client';
+
+    return {
+      id: 'usr-1',
+      name: name,
+      email: email,
+      role: role as 'admin' | 'client' || 'client',
+      avatar: 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+    };
+  });
 
   // State for subaccounts (Real Data)
   const [subaccounts, setSubaccounts] = useState<SubAccount[]>([]);
@@ -29,51 +46,50 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchAccounts = async () => {
       // DEBUG: Check if API Key exists
-      const apiKey = import.meta.env.VITE_GHL_API_KEY;
-      if (!apiKey) {
-        setFetchError("❌ Error Critical: Falta VITE_GHL_API_KEY en las variables de entorno de Vercel.");
-        return;
-      }
+      // Backend handles security, but we check env in UI for dev clues if needed
 
       try {
-        // 1. Fetch all (Assuming Admin Key)
+        // 1. Fetch all (Assuming Admin Key via Backend)
         const allAccounts = await unyraService.getSubaccounts();
 
         if (allAccounts.length === 0) {
-          setFetchError("⚠️ Conexión exitosa, pero no se encontraron subcuentas (o la API Key no tiene permisos).");
-          // Keep loading/fallback state
+          setFetchError("⚠️ Conexión exitosa, pero no se encontraron subcuentas.");
         } else {
           setFetchError(null);
         }
 
-        // 2. Filter based on Role
-        // In a real app, 'currentUser' would come from auth context.
-        // Here, we act as if we are:
-        // - Admin: See all.
-        // - Client: See only the one matching VITE_GHL_LOCATION_ID.
+        // 2. Filter based on Role and URL Params
+        const params = new URLSearchParams(window.location.search);
+        const urlLocationId = params.get('location_id') || import.meta.env.VITE_GHL_LOCATION_ID;
 
         if (currentUser.role === 'admin') {
           setSubaccounts(allAccounts);
           if (allAccounts.length > 0 && !selectedAccount) {
-            setSelectedAccount(allAccounts[0]);
+            // Try to auto-select from URL if valid, else first account
+            const target = allAccounts.find(a => a.id === urlLocationId) || allAccounts[0];
+            setSelectedAccount(target);
           }
         } else {
           // Client Mode: Filter to specific ID
-          const myLocationId = import.meta.env.VITE_GHL_LOCATION_ID;
-          const myAccount = allAccounts.find(a => a.id === myLocationId) || allAccounts[0]; // Fallback
+          const myAccount = allAccounts.find(a => a.id === urlLocationId);
 
           if (myAccount) {
             setSubaccounts([myAccount]);
             setSelectedAccount(myAccount);
+          } else if (allAccounts.length > 0) {
+            // Fallback: If URL param is missing/wrong, show error or nothing. 
+            // Do NOT show random account to client.
+            setFetchError("⚠️ No se encontró la subcuenta o no tienes permisos.");
+            setSubaccounts([]);
           }
         }
       } catch (err: any) {
-        setFetchError(`❌ Error de Conexión: ${err.message || 'Error desconocido al conectar con GHL'}`);
+        setFetchError(`❌ Error de Conexión: ${err.message || 'Error desconocido'}`);
       }
     };
 
     fetchAccounts();
-  }, [currentUser]); // Re-fetch/filter if role changes (for demo switch)
+  }, [currentUser]); // Re-fetch logic if user changes
 
 
   const scrollToBottom = () => {
