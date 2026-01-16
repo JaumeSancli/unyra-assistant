@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { geminiService } from './services/geminiService';
+import { unyraService } from './services/unyraService';
 import { Message, LoadingState, SubAccount, UserProfile, Attachment } from './types';
 import { MOCK_SUBACCOUNTS, MOCK_ADMIN_USER, MOCK_CLIENT_USER } from './constants';
 import ChatMessage from './components/ChatMessage';
@@ -10,30 +11,68 @@ import { LifeBuoy, Zap, Database, CheckCircle2, Bot, Users, LayoutDashboard, Tic
 const App: React.FC = () => {
   // State for User Role (Mocking Authentication)
   const [currentUser, setCurrentUser] = useState<UserProfile>(MOCK_ADMIN_USER);
-  
+
+  // State for subaccounts (Real Data)
+  const [subaccounts, setSubaccounts] = useState<SubAccount[]>([]);
+
   // State for active account
-  const [selectedAccount, setSelectedAccount] = useState<SubAccount>(MOCK_SUBACCOUNTS[0]);
-  
+  const [selectedAccount, setSelectedAccount] = useState<SubAccount | null>(null);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingState, setLoadingState] = useState<LoadingState>(LoadingState.IDLE);
   const [currentTool, setCurrentTool] = useState<string | null>(null);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch Subaccounts on Boot
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      // 1. Fetch all (Assuming Admin Key)
+      const allAccounts = await unyraService.getSubaccounts();
+
+      // 2. Filter based on Role
+      // In a real app, 'currentUser' would come from auth context.
+      // Here, we act as if we are:
+      // - Admin: See all.
+      // - Client: See only the one matching VITE_GHL_LOCATION_ID.
+
+      if (currentUser.role === 'admin') {
+        setSubaccounts(allAccounts);
+        if (allAccounts.length > 0 && !selectedAccount) {
+          setSelectedAccount(allAccounts[0]);
+        }
+      } else {
+        // Client Mode: Filter to specific ID
+        const myLocationId = import.meta.env.VITE_GHL_LOCATION_ID;
+        const myAccount = allAccounts.find(a => a.id === myLocationId) || allAccounts[0]; // Fallback
+
+        if (myAccount) {
+          setSubaccounts([myAccount]);
+          setSelectedAccount(myAccount);
+        }
+      }
+    };
+
+    fetchAccounts();
+  }, [currentUser]); // Re-fetch/filter if role changes (for demo switch)
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const initChat = async (account: SubAccount, user: UserProfile) => {
+    if (!account) return;
+
     setLoadingState(LoadingState.THINKING);
     try {
       await geminiService.startChat(account);
-      
+
       let welcomeText = "";
       if (user.role === 'admin') {
-         welcomeText = `Hola ${user.name}. Estás supervisando la cuenta **${account.name}**. ¿Qué gestión deseas realizar hoy?`;
+        welcomeText = `Hola ${user.name}. Estás supervisando la cuenta **${account.name}**. ¿Qué gestión deseas realizar hoy?`;
       } else {
-         welcomeText = `Hola ${user.name}. Bienvenido al soporte de Unyra para **${account.name}**. ¿En qué puedo ayudarte? Puedes enviarme audio, video o texto.`;
+        welcomeText = `Hola ${user.name}. Bienvenido al soporte de Unyra para **${account.name}**. ¿En qué puedo ayudarte? Puedes enviarme audio, video o texto.`;
       }
 
       setMessages([
@@ -55,23 +94,29 @@ const App: React.FC = () => {
   const handleRoleSwitch = () => {
     if (currentUser.role === 'admin') {
       // Switch to Client
-      const clientAccount = MOCK_SUBACCOUNTS.find(a => a.id === MOCK_CLIENT_USER.assignedLocationId);
-      if (clientAccount) {
-        setSelectedAccount(clientAccount);
-        setCurrentUser(MOCK_CLIENT_USER);
-      }
+      // Assuming VITE_GHL_LOCATION_ID is the "Client's" location
+      const clientLocId = import.meta.env.VITE_GHL_LOCATION_ID;
+
+      setCurrentUser({
+        id: 'client_user',
+        name: 'Cliente (Role)',
+        role: 'client',
+        assignedLocationId: clientLocId
+      });
+      // Effect will re-filter subaccounts
     } else {
       // Switch to Admin
       setCurrentUser(MOCK_ADMIN_USER);
-      // Admin stays on current account or resets, let's keep current for smoothness or reset to 0
-      setSelectedAccount(MOCK_SUBACCOUNTS[0]);
+      // Effect will fetch all
     }
   };
 
-  // Initialize chat when component mounts or account changes
+  // Initialize chat when active account changes (and is valid)
   useEffect(() => {
-    initChat(selectedAccount, currentUser);
-  }, [selectedAccount, currentUser]);
+    if (selectedAccount) {
+      initChat(selectedAccount, currentUser);
+    }
+  }, [selectedAccount]);
 
   useEffect(() => {
     scrollToBottom();
@@ -124,7 +169,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      
+
       {/* Sidebar */}
       <div className="hidden md:flex w-64 bg-slate-900 flex-col text-slate-300">
         <div className="p-4 border-b border-slate-700 mb-2">
@@ -141,15 +186,15 @@ const App: React.FC = () => {
         </div>
 
         {/* Location Context Selector */}
-        <LocationSelector 
+        <LocationSelector
           accounts={MOCK_SUBACCOUNTS}
           selectedAccount={selectedAccount}
           onSelect={setSelectedAccount}
           locked={!isAdmin} // Lock for non-admins
         />
-        
+
         <div className="p-4 space-y-6 flex-1 overflow-y-auto">
-          
+
           {/* Menu for ADMIN */}
           {isAdmin && (
             <>
@@ -172,17 +217,17 @@ const App: React.FC = () => {
               </div>
 
               <div>
-                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Supervisión</h3>
-                 <ul className="space-y-3 text-sm">
-                    <li className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer transition-colors">
-                       <Ticket size={16} className="text-emerald-400" />
-                       <span>Todos los Tickets</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer transition-colors">
-                       <CheckCircle2 size={16} className="text-blue-400" />
-                       <span>Tareas Globales</span>
-                    </li>
-                 </ul>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Supervisión</h3>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer transition-colors">
+                    <Ticket size={16} className="text-emerald-400" />
+                    <span>Todos los Tickets</span>
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer transition-colors">
+                    <CheckCircle2 size={16} className="text-blue-400" />
+                    <span>Tareas Globales</span>
+                  </li>
+                </ul>
               </div>
             </>
           )}
@@ -213,34 +258,34 @@ const App: React.FC = () => {
               {currentUser.name.charAt(0)}
             </div>
             <div className="text-xs truncate text-slate-300">
-               {currentUser.name}
+              {currentUser.name}
             </div>
           </div>
 
           {/* Role Toggle for Demo */}
-          <button 
-             onClick={handleRoleSwitch}
-             className="w-full flex items-center justify-center gap-2 text-xs py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors border border-slate-700"
+          <button
+            onClick={handleRoleSwitch}
+            className="w-full flex items-center justify-center gap-2 text-xs py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-400 hover:text-white transition-colors border border-slate-700"
           >
-             <RotateCcw size={12} />
-             <span>Switch Role (Demo)</span>
+            <RotateCcw size={12} />
+            <span>Switch Role (Demo)</span>
           </button>
         </div>
       </div>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full relative">
-        
+
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200">
-           <div className="flex items-center">
-             <Zap className="text-indigo-600 mr-2" />
-             <span className="font-bold text-slate-800">UNYRA</span>
-           </div>
-           <div className="text-xs text-slate-500 font-mono flex items-center gap-2">
-             <span className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
-             {isAdmin ? 'Admin' : 'Client'}
-           </div>
+          <div className="flex items-center">
+            <Zap className="text-indigo-600 mr-2" />
+            <span className="font-bold text-slate-800">UNYRA</span>
+          </div>
+          <div className="text-xs text-slate-500 font-mono flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${isAdmin ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
+            {isAdmin ? 'Admin' : 'Client'}
+          </div>
         </div>
 
         {/* Chat Messages */}
@@ -253,40 +298,40 @@ const App: React.FC = () => {
             {/* Loading Indicator */}
             {loadingState !== LoadingState.IDLE && (
               <div className="flex w-full mb-6 justify-start">
-                 <div className="flex max-w-[75%] gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center">
-                       <Bot size={16} className="text-white" />
-                    </div>
-                    <div className="bg-white border border-slate-100 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-3">
-                       {loadingState === LoadingState.EXECUTING_TOOL ? (
-                         <>
-                           <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                           <span className="text-sm text-slate-600 font-medium">
-                             Ejecutando herramienta: <span className="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">{currentTool}</span>
-                           </span>
-                         </>
-                       ) : (
-                         <div className="flex gap-1.5">
-                           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                         </div>
-                       )}
-                    </div>
-                 </div>
+                <div className="flex max-w-[75%] gap-3">
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center">
+                    <Bot size={16} className="text-white" />
+                  </div>
+                  <div className="bg-white border border-slate-100 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-3">
+                    {loadingState === LoadingState.EXECUTING_TOOL ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                        <span className="text-sm text-slate-600 font-medium">
+                          Ejecutando herramienta: <span className="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">{currentTool}</span>
+                        </span>
+                      </>
+                    ) : (
+                      <div className="flex gap-1.5">
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
         </div>
 
         {/* Input Area */}
-        <ChatInput 
-          onSend={handleSendMessage} 
-          disabled={loadingState !== LoadingState.IDLE} 
+        <ChatInput
+          onSend={handleSendMessage}
+          disabled={loadingState !== LoadingState.IDLE}
         />
-        
+
       </div>
     </div>
   );

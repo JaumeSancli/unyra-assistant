@@ -1,6 +1,35 @@
 import { UnyraTaskResponse, UnyraTaskData } from '../types';
 
 export const unyraService = {
+    async getSubaccounts(): Promise<any[]> {
+        const apiKey = import.meta.env.VITE_GHL_API_KEY;
+        if (!apiKey) return [];
+
+        try {
+            const res = await fetch('https://services.leadconnectorhq.com/locations/search?limit=100', {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Version': '2021-07-28',
+                    'Accept': 'application/json'
+                }
+            });
+            const json = await res.json();
+
+            // Map to simpler format if needed, or return raw
+            // Matches SubAccount interface: { id, name, email, plan, status }
+            return (json.locations || []).map((loc: any) => ({
+                id: loc.id,
+                name: loc.name || "Unnamed Location",
+                email: loc.email || "no-email",
+                plan: "Standard", // API doesn't always return plan name easily
+                status: "active" // Defaulting for now
+            }));
+        } catch (e) {
+            console.error("Failed to fetch subaccounts", e);
+            return [];
+        }
+    },
+
     async createTask(taskData: any): Promise<UnyraTaskResponse> {
         const apiKey = import.meta.env.VITE_GHL_API_KEY;
         const locationId = import.meta.env.VITE_GHL_LOCATION_ID;
