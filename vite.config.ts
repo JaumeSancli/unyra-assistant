@@ -8,13 +8,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      proxy: {
-        '/ghl-api': {
-          target: 'https://services.leadconnectorhq.com',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/ghl-api/, '')
-        }
-      }
+      proxy: {}
     },
     plugins: [react()],
     define: {

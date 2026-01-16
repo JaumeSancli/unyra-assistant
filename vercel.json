@@ -1,11 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/ghl-api/:match*",
-            "destination": "https://services.leadconnectorhq.com/:match*"
-        },
-        {
-            "source": "/(.*)",
+            "source": "/((?!api/.*).*)",
             "destination": "/index.html"
         }
     ]
