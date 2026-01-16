@@ -6,7 +6,10 @@ export const unyraService = {
         if (!apiKey) return [];
 
         try {
-            const res = await fetch('https://services.leadconnectorhq.com/locations/search?limit=100', {
+            // Use Proxy Path to avoid CORS
+            const baseUrl = '/api/ghl';
+
+            const res = await fetch(`${baseUrl}/locations/search?limit=100`, {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Version': '2021-07-28',
@@ -57,7 +60,7 @@ export const unyraService = {
             const contactId = await this._ensureContactInGHL(taskData.requester_email, taskData.metadata?.location_name);
 
             // 2. Create Task
-            const res = await fetch('https://services.leadconnectorhq.com/tasks', {
+            const res = await fetch('/api/ghl/tasks', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -99,7 +102,7 @@ export const unyraService = {
         // But assuming the user put a Location-level API Key OR a Bearer token with scope.
         // Let's try standard lookup.
 
-        const searchRes = await fetch(`https://services.leadconnectorhq.com/contacts/search?query=${email}&locationId=${locationId}`, {
+        const searchRes = await fetch(`/api/ghl/contacts/search?query=${email}&locationId=${locationId}`, {
             headers: { 'Authorization': `Bearer ${apiKey}`, 'Version': '2021-07-28' }
         });
 
@@ -109,7 +112,7 @@ export const unyraService = {
         }
 
         // Create
-        const createRes = await fetch(`https://services.leadconnectorhq.com/contacts/`, {
+        const createRes = await fetch(`/api/ghl/contacts/`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
