@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { geminiService } from './services/geminiService';
 import { unyraService } from './services/unyraService';
-import { sheetsService } from './services/sheetsService';
 import { Message, LoadingState, SubAccount, UserProfile, Attachment } from './types';
 import { MOCK_SUBACCOUNTS, MOCK_ADMIN_USER, MOCK_CLIENT_USER } from './constants';
 import ChatMessage from './components/ChatMessage';
@@ -134,7 +133,8 @@ const App: React.FC = () => {
     const fetchTickets = async () => {
       if (currentUser.email) {
         try {
-          const tickets = await sheetsService.getTickets(currentUser.email);
+          // Now fetching from GHL Tasks via secure backend
+          const tickets = await unyraService.getTickets(currentUser.email);
           setTicketCount(tickets.length);
         } catch (e) {
           console.error("Failed to fetch tickets", e);

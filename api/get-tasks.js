@@ -1,0 +1,61 @@
+export default async function handler(req, res) {
+    const apiKey = process.env.GHL_API_KEY || process.env.VITE_GHL_API_KEY;
+
+    if (!apiKey) {
+        return res.status(500).json({ error: 'Missing API Key' });
+    }
+
+    const { email, locationId } = req.query;
+
+    if (!email || !locationId) {
+        return res.status(400).json({ error: 'Missing email or locationId' });
+    }
+
+    try {
+        // 1. Search Contact to get ID
+        const searchUrl = `https://services.leadconnectorhq.com/contacts/search?query=${encodeURIComponent(email)}&locationId=${locationId}`;
+        const searchRes = await fetch(searchUrl, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Version': '2021-07-28',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!searchRes.ok) {
+            return res.status(searchRes.status).json({ error: 'Contact Search Failed' });
+        }
+
+        const searchJson = await searchRes.json();
+        const contact = searchJson.contacts?.[0];
+
+        if (!contact) {
+            // Contact not found -> No tickets
+            return res.status(200).json({ tasks: [] });
+        }
+
+        // 2. Fetch Tasks for Contact
+        const tasksUrl = `https://services.leadconnectorhq.com/tasks/search?contactId=${contact.id}`;
+        const tasksRes = await fetch(tasksUrl, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Version': '2021-07-28',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!tasksRes.ok) {
+            // Handle 404 or empty specifically if needed, but GHL usually returns array
+            return res.status(tasksRes.status).json({ error: 'Tasks Fetch Failed' });
+        }
+
+        const tasksJson = await tasksRes.json();
+
+        // Return format
+        return res.status(200).json({ tasks: tasksJson.tasks || [] });
+
+    } catch (error) {
+        console.error('API Error:', error);
+        return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+}
