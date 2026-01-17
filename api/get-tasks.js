@@ -23,7 +23,10 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 locationId: locationId,
-                query: email
+                query: email,
+                limit: 1,
+                startAfterId: 0,
+                startAfter: 0
             })
         });
 
