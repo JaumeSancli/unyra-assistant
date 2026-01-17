@@ -1,9 +1,9 @@
 
 export default async function handler(req, res) {
-    const apiKey = process.env.GHL_API_KEY || process.env.VITE_GHL_API_KEY;
+    const apiKey = process.env.GHL_LOCATION_KEY || process.env.GHL_API_KEY || process.env.VITE_GHL_API_KEY;
 
     if (!apiKey) {
-        return res.status(500).json({ error: 'Missing API Key' });
+        return res.status(500).json({ error: 'Missing API Key (GHL_LOCATION_KEY required)' });
     }
 
     if (req.method !== 'POST') {
