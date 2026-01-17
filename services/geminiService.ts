@@ -1,4 +1,97 @@
-import { GoogleGenAI, FunctionDeclaration, Type, Tool, Chat, Part } from "@google/genai";
+import { UNYRA_SYSTEM_INSTRUCTION } from "../constants";
+import { SubAccount, Attachment } from "../types";
+
+// --- Service Class ---
+
+export class UnyraSupportService {
+  private subaccount: SubAccount | null = null;
+  private systemInstruction: string = "";
+
+  async startChat(subaccount: SubAccount) {
+    this.subaccount = subaccount;
+
+    const accountContext = `
+──────────────────────────────────────────────────────────────────────────────
+CONTEXTO DE LA SUBCUENTA ACTIVA (AUTO-INJECTADO)
+El usuario actual está gestionando la siguiente cuenta. Úsala para pre-rellenar datos de tickets (location_id, location_name, requester_email) y para dar contexto.
+
+ID Cuenta: ${subaccount.id}
+Nombre: ${subaccount.name}
+Email Admin: ${subaccount.email}
+Plan Actual: ${subaccount.plan}
+Estado: ${subaccount.status}
+──────────────────────────────────────────────────────────────────────────────
+`;
+
+    this.systemInstruction = UNYRA_SYSTEM_INSTRUCTION + accountContext;
+
+    try {
+      // Initialize chat via backend
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'init',
+          subaccount: subaccount
+        })
+      });
+
+      if (!res.ok) {
+        console.warn("Chat init failed, will continue anyway");
+      }
+    } catch (e) {
+      console.warn("Failed to initialize chat via backend", e);
+    }
+  }
+
+  async sendMessage(
+    message: string,
+    attachments: Attachment[] = [],
+    onToolExecution?: (toolName: string) => void
+  ): Promise<string> {
+
+    if (!this.subaccount) {
+      return "Error: Chat not initialized. Please refresh the page.";
+    }
+
+    try {
+      // Call backend API for message processing
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'message',
+          subaccount: this.subaccount,
+          message: message,
+          attachments: attachments,
+          history: [
+            { role: 'system', systemInstruction: this.systemInstruction }
+          ]
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Backend API error');
+      }
+
+      const data = await res.json();
+
+      // Trigger tool execution callback if provided
+      if (onToolExecution && data.response?.includes('create_unyra_task')) {
+        onToolExecution('create_unyra_task');
+      }
+
+      return data.response || "No response generated.";
+
+    } catch (error: any) {
+      console.error("Chat API Error:", error);
+      return `Lo siento, hubo un error al procesar tu solicitud: ${error.message}. Por favor, intenta de nuevo.`;
+    }
+  }
+}
+
+export const geminiService = new UnyraSupportService();
 import { UNYRA_SYSTEM_INSTRUCTION } from "../constants";
 import { UnyraTaskResponse, SubAccount, Attachment } from "../types";
 import { unyraService } from "./unyraService";
