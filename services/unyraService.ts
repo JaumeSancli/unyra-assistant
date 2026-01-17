@@ -40,6 +40,7 @@ export const unyraService = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    locationId: locationId,
                     contactId: contactId,
                     title: taskData.title,
                     body: taskData.description,
