@@ -28,9 +28,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 locationId: locationId,
                 query: email,
-                limit: 1,
-                startAfterId: 0,
-                startAfter: 0
+                pageLimit: 1
             })
         });
 
