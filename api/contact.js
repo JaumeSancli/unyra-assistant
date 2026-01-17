@@ -17,10 +17,18 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1. Search
-        const searchUrl = `https://services.leadconnectorhq.com/contacts/search?query=${encodeURIComponent(email)}&locationId=${locationId}`;
-        const searchRes = await fetch(searchUrl, {
-            headers: { 'Authorization': `Bearer ${apiKey}`, 'Version': '2021-07-28' }
+        // 1. Search using POST /contacts/search (correct API v2 method)
+        const searchRes = await fetch('https://services.leadconnectorhq.com/contacts/search', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Version': '2021-07-28',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                locationId: locationId,
+                query: email
+            })
         });
 
         if (!searchRes.ok) {
