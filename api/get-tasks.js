@@ -24,7 +24,9 @@ export default async function handler(req, res) {
         });
 
         if (!searchRes.ok) {
-            return res.status(searchRes.status).json({ error: 'Contact Search Failed' });
+            const errText = await searchRes.text();
+            console.error("GHL Search Error:", errText);
+            return res.status(searchRes.status).json({ error: 'Contact Search Failed', details: errText });
         }
 
         const searchJson = await searchRes.json();

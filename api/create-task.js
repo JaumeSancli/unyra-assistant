@@ -18,6 +18,12 @@ export default async function handler(req, res) {
             body: JSON.stringify(req.body)
         });
 
+        if (!ghlRes.ok) {
+            const errText = await ghlRes.text();
+            console.error("GHL Create Task Error:", errText);
+            return res.status(ghlRes.status).json({ error: 'Task Creation Failed', details: errText });
+        }
+
         const data = await ghlRes.json();
         return res.status(ghlRes.status).json(data);
 

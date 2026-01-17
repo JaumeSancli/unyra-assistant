@@ -23,6 +23,12 @@ export default async function handler(req, res) {
             headers: { 'Authorization': `Bearer ${apiKey}`, 'Version': '2021-07-28' }
         });
 
+        if (!searchRes.ok) {
+            const errText = await searchRes.text();
+            console.error("GHL Contact Search Error:", errText);
+            return res.status(searchRes.status).json({ error: 'Contact Search Failed', details: errText });
+        }
+
         const searchJson = await searchRes.json();
 
         if (searchJson.contacts && searchJson.contacts.length > 0) {
