@@ -1,51 +1,9 @@
 import { GoogleGenAI, FunctionDeclaration, Type, Tool, Chat, Part } from "@google/genai";
 import { UNYRA_SYSTEM_INSTRUCTION } from "../constants";
-import { GoogleSheetResponse, UnyraTaskResponse, SubAccount, Attachment } from "../types";
-import { sheetsService } from "./sheetsService";
+import { UnyraTaskResponse, SubAccount, Attachment } from "../types";
 import { unyraService } from "./unyraService";
 
 // --- Tool Definitions ---
-
-const appendToGoogleSheetTool: FunctionDeclaration = {
-  name: "append_to_google_sheet",
-  description: "Append a new support ticket row into Google Sheets and return row_id/ticket_id.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      spreadsheet_id: { type: Type.STRING },
-      sheet_name: { type: Type.STRING },
-      row: {
-        type: Type.OBJECT,
-        properties: {
-          created_at: { type: Type.STRING, description: "ISO 8601" },
-          requester_name: { type: Type.STRING },
-          requester_email: { type: Type.STRING },
-          location_name: { type: Type.STRING },
-          location_id: { type: Type.STRING, nullable: true },
-          area: { type: Type.STRING },
-          severity: { type: Type.STRING, enum: ["S1", "S2", "S3", "S4"] },
-          subject: { type: Type.STRING },
-          description: { type: Type.STRING },
-          steps_to_reproduce: { type: Type.STRING },
-          expected_result: { type: Type.STRING },
-          actual_result: { type: Type.STRING },
-          error_text: { type: Type.STRING, nullable: true },
-          attachments: { type: Type.STRING, description: "JSON-stringified array of {type,url}" },
-          priority_score: { type: Type.INTEGER },
-          status: { type: Type.STRING, enum: ["new", "in_progress", "waiting_user", "resolved", "task_failed"] },
-          unyra_task_id: { type: Type.STRING, nullable: true },
-          task_error: { type: Type.STRING, nullable: true }
-        },
-        required: [
-          "created_at", "requester_name", "requester_email", "location_name",
-          "area", "severity", "subject", "description", "steps_to_reproduce",
-          "expected_result", "actual_result", "attachments", "priority_score", "status"
-        ]
-      }
-    },
-    required: ["spreadsheet_id", "sheet_name", "row"]
-  }
-};
 
 const createUnyraTaskTool: FunctionDeclaration = {
   name: "create_unyra_task",
@@ -107,44 +65,11 @@ const createUnyraTaskTool: FunctionDeclaration = {
   }
 };
 
-const updateGoogleSheetTicketTool: FunctionDeclaration = {
-  name: "update_google_sheet_ticket",
-  description: "Update an existing ticket row with task linkage fields.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      spreadsheet_id: { type: Type.STRING },
-      sheet_name: { type: Type.STRING },
-      row_id: { type: Type.STRING },
-      patch: {
-        type: Type.OBJECT,
-        properties: {
-          status: { type: Type.STRING, enum: ["new", "in_progress", "waiting_user", "resolved", "task_failed"] },
-          unyra_task_id: { type: Type.STRING, nullable: true },
-          task_error: { type: Type.STRING, nullable: true }
-        }
-      }
-    },
-    required: ["spreadsheet_id", "sheet_name", "row_id", "patch"]
-  }
-};
-
 const supportTools: Tool = {
   functionDeclarations: [createUnyraTaskTool]
 };
 
 // --- Mock Implementations (Client Side Simulation) ---
-
-const mockAppendToSheet = async (args: any): Promise<GoogleSheetResponse> => {
-  console.log("MOCK API: Appending to sheet...", args);
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate latency
-  return {
-    ok: true,
-    row_id: Math.floor(Math.random() * 1000).toString(),
-    ticket_id: `TCK-2025-${Math.floor(Math.random() * 10000)}`,
-    sheet_url: "https://docs.google.com/spreadsheets/d/mock-sheet-id/edit"
-  };
-};
 
 const mockCreateUnyraTask = async (args: any): Promise<UnyraTaskResponse> => {
   console.log("MOCK API: Creating Unyra task...", args);
@@ -155,13 +80,6 @@ const mockCreateUnyraTask = async (args: any): Promise<UnyraTaskResponse> => {
     task_url: `https://unyra.net/tasks/TASK-${Math.floor(Math.random() * 10000)}`
   };
 };
-
-const mockUpdateGoogleSheetTicket = async (args: any): Promise<any> => {
-  console.log("MOCK API: Updating Google Sheet ticket...", args);
-  await new Promise(resolve => setTimeout(resolve, 800));
-  return { ok: true };
-};
-
 
 // --- Service Class ---
 
@@ -221,31 +139,11 @@ Estado: ${subAccount.status}
 
       // Simple heuristic conversation for testing ticket flow
       if (lowerMsg.includes('ticket') && lowerMsg.includes('crea')) {
-        if (onToolExecution) onToolExecution('append_to_google_sheet');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const sheetRes = await mockAppendToSheet({
-          spreadsheet_id: 'mock', sheet_name: 'tickets', row: {
-            created_at: new Date().toISOString(),
-            requester_name: 'Test User',
-            requester_email: 'test@example.com',
-            location_name: 'Demo Location',
-            area: 'Calendar',
-            severity: 'S3',
-            subject: 'Test Ticket',
-            description: 'Generated via Mock Mode',
-            steps_to_reproduce: 'N/A',
-            expected_result: 'Ticket created',
-            actual_result: 'Error',
-            attachments: '[]',
-            priority_score: 50,
-            status: 'new'
-          }
-        });
 
         if (onToolExecution) onToolExecution('create_unyra_task');
         await new Promise(resolve => setTimeout(resolve, 1000));
         const taskRes = await mockCreateUnyraTask({
-          locationId: 'loc_123', tags: ['support'], title: 'Test Task', description: 'Mock', severity: 'S3', area: 'Calendar', priority_score: 50, sheet_ticket_id: sheetRes.ticket_id, requester_email: 'test@example.com'
+          locationId: 'loc_123', tags: ['support'], title: 'Test Task', description: 'Mock', severity: 'S3', area: 'Calendar', priority_score: 50, sheet_ticket_id: 'MOCK-SHEET', requester_email: 'test@example.com'
         });
 
         return `Entendido. He procedido a crear el ticket de soporte como solicitaste.
@@ -253,7 +151,6 @@ Estado: ${subAccount.status}
 \`\`\`json
 {
   "ticket_created": true,
-  "sheet": { "ticket_id": "${sheetRes.ticket_id}", "row_id": "${sheetRes.row_id}", "sheet_url": "${sheetRes.sheet_url}" },
   "unyra_task": { "unyra_task_id": "${taskRes.unyra_task_id}", "task_url": "${taskRes.task_url}" },
   "status": "new"
 }
@@ -306,15 +203,9 @@ Estado: ${subAccount.status}
           let responseContent = {};
 
           try {
-            if (name === 'append_to_google_sheet') {
-              console.log("🛠️ Tool Exec: append_to_google_sheet", args);
-              responseContent = await sheetsService.appendTicket(args.row as any);
-            } else if (name === 'create_unyra_task') {
+            if (name === 'create_unyra_task') {
               console.log("🛠️ Tool Exec: create_unyra_task", args);
               responseContent = await unyraService.createTask(args.task as any);
-            } else if (name === 'update_google_sheet_ticket') {
-              console.log("🛠️ Tool Exec: update_google_sheet_ticket", args);
-              responseContent = await sheetsService.updateTicket(args.row_id as string, args.patch);
             } else {
               responseContent = { error: `Unknown tool ${name}` };
             }
